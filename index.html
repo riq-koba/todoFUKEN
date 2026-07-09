@@ -278,7 +278,7 @@
             { name: "沖縄県", r: 10, c: 1, bg: "#edf2f7" },
             { name: "福岡県", r: 7, c: 2, bg: "#fbe9e7" },
             { name: "佐賀県", r: 8, c: 2, bg: "#fbe9e7" },
-            { name: "熊本県", r: 9, r: 2, bg: "#fbe9e7" },
+            { name: "熊本県", r: 9, c: 2, bg: "#fbe9e7" },
             { name: "大分県", r: 8, c: 3, bg: "#fbe9e7" },
             { name: "宮崎県", r: 9, c: 3, bg: "#fbe9e7" },
             { name: "鹿児島県", r: 10, c: 3, bg: "#fbe9e7" }
@@ -288,7 +288,7 @@
         let drawnList = [];
         let isFirst = true;
 
-        // --- オーディオコンテキストの完全初期化システム ---
+        // --- iPadの負荷をゼロにする「使い回し型」オーディオシステム ---
         let audioCtx = null;
 
         function initAudio() {
@@ -300,39 +300,46 @@
                     audioCtx.resume();
                 }
             } catch (e) {
-                console.error("AudioContext initialization failed:", e);
+                console.error(e);
             }
         }
 
-        // 画面全体のどこを触っても、即座にオーディオのロックを解除する安全網
+        // 画面タッチでの保険（消さずに残します）
         document.addEventListener('touchstart', initAudio, { passive: true });
         document.addEventListener('click', initAudio, { passive: true });
 
-        // シャッフル音（聞き取りやすい高めの電子ピッ音）
-        function playShuffleSound() {
+        // iPad対応：1つのタイムライン上にすべてのシャッフル音の波形をあらかじめ「予約配置」する新方式
+        function playShufflePattern(count, intervalMs) {
             initAudio();
             if (!audioCtx) return;
 
-            try {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                
-                osc.type = 'sine';
-                // 1000Hz前後のクリアな高音に変更
-                osc.frequency.setValueAtTime(1200, audioCtx.currentTime); 
-                
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                // すぐにシュッと消すことで歯切れを良くする
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); 
-                
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.05);
-            } catch(e) { 
-                console.log(e); 
+            const now = audioCtx.currentTime;
+            
+            // 1つのオシレーターと1つのゲイン（ボリューム）だけで完結させる
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1200, now); // 聞き取りやすい高音
+            
+            // 最初は音量をゼロにしておく
+            gainNode.gain.setValueAtTime(0, now);
+            
+            // ループを回して、指定された回数分「一瞬だけ音を大きくする」予定をタイムラインに刻み込む
+            for (let i = 0; i < count; i++) {
+                const startTime = now + (i * (intervalMs / 1000));
+                // 音を出す
+                gainNode.gain.setValueAtTime(0.1, startTime);
+                // 0.04秒後に音を消す
+                gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.04);
             }
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start(now);
+            // すべての予定が終了する時間にオシレーターを停止
+            osc.stop(now + (count * (intervalMs / 1000)) + 0.1);
         }
 
         // 確定音（ピピッポーン！）
@@ -342,14 +349,13 @@
 
             try {
                 const now = audioCtx.currentTime;
-                // ド(523Hz) -> ソ(784Hz) -> ド(1046Hz) のハッピーな3連和音調
-                const notes = [523.25, 783.99, 1046.50]; 
+                const notes = [523.25, 783.99, 1046.50]; // ド -> ソ -> ド
                 
                 notes.forEach((freq, index) => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     
-                    osc.type = 'triangle'; // 芯のある綺麗な音
+                    osc.type = 'triangle';
                     osc.frequency.setValueAtTime(freq, now + (index * 0.06));
                     
                     gain.gain.setValueAtTime(0.15, now + (index * 0.06));
@@ -389,7 +395,7 @@
         window.onload = createMapGrid;
 
         function drawPrefecture() {
-            // ボタンタップの瞬間にも確実にアクティベートを叩く
+            // タップしたこの一瞬にすべての音声システムを完全トリガー
             initAudio();
 
             const actionBtn = document.getElementById("action-btn");
@@ -407,19 +413,22 @@
 
             if (shuffledList.length === 0) return;
 
-            let shuffleCount = 0;
             actionBtn.disabled = true;
+            
+            const totalShuffles = 11; // シャッフルで名前が切り替わる回数
+            const intervalDuration = 90; // 切り替えの間隔（ミリ秒）
 
+            // iPadのために、ボタンを押したこの瞬間に11回分の「ピピピピピ」をすべて予約演奏させる！
+            playShufflePattern(totalShuffles, intervalDuration);
+
+            let shuffleCount = 0;
             const shuffleInterval = setInterval(() => {
                 const tempIndex = Math.floor(Math.random() * prefecturesData.length);
                 displayText.textContent = prefecturesData[tempIndex].name;
-                
-                // シャッフル音再生
-                playShuffleSound();
 
                 shuffleCount++;
 
-                if (shuffleCount > 10) {
+                if (shuffleCount >= totalShuffles) {
                     clearInterval(shuffleInterval);
                     const nextPref = shuffledList.pop();
                     drawnList.push(nextPref);
@@ -430,7 +439,7 @@
                     const mapBlock = document.getElementById(`map-${nextPref}`);
                     if (mapBlock) mapBlock.classList.add("selected");
 
-                    // 確定音再生
+                    // 最後に確定音を鳴らす
                     playHitSound();
                     
                     actionBtn.disabled = false;
@@ -440,7 +449,7 @@
                         actionBtn.style.display = "none"; 
                     }
                 }
-            }, 90);
+            }, intervalDuration);
         }
 
         function shuffle(array) {
@@ -453,7 +462,7 @@
 
         function resetApp() {
             if (drawnList.length > 0 && shuffledList.length > 0) {
-                if (!confirm("途中で終了して最初の画面に戻りますか？")) return;
+                if (!confirm("途途中終了して最初の画面に戻りますか？")) return;
             }
             shuffledList = [];
             drawnList = [];
