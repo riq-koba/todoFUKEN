@@ -1,2 +1,512 @@
-１．都道府県BINGO
-２．to do 形で都道府県（開発中）
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>47都道府県ビンゴ</title>
+    <style>
+        /* --- 全体デザイン --- */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: #f0f7f4;
+            color: #333333;
+            overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .app-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: block;
+            padding: 20px;
+        }
+
+        .app-title {
+            text-align: center;
+            font-size: 28pt;
+            font-weight: bold;
+            color: #2c5e43;
+            margin: 0;
+            padding-top: 10px;
+            letter-spacing: 2px;
+        }
+
+        .counter-box {
+            position: absolute;
+            top: 25px;
+            left: 30px;
+            font-size: 20pt;
+            font-weight: bold;
+            color: #555555;
+            background-color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .counter-highlight {
+            font-size: 26pt;
+            color: #d9534f;
+        }
+
+        .main-display {
+            width: 80%;
+            height: 45vh;
+            margin: 4vh auto 0 auto;
+            background-color: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+            border: 4px solid #b2d8d2;
+            display: table;
+            text-align: center;
+        }
+        .main-display-inner {
+            display: table-cell;
+            vertical-align: middle;
+            font-size: 80pt;
+            font-weight: 900;
+            color: #1a1a1a;
+            letter-spacing: 4px;
+        }
+        .status-message {
+            font-size: 40pt;
+            color: #888888;
+            font-weight: bold;
+        }
+
+        .control-panel {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+        }
+
+        .btn {
+            font-size: 24pt;
+            font-weight: bold;
+            padding: 18px 45px;
+            border-radius: 15px;
+            border: none;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            transition: transform 0.1s, background-color 0.2s;
+            display: inline-block;
+            margin: 0 10px;
+            vertical-align: middle;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn-start { background-color: #ff9f1c; color: #ffffff; min-width: 200px; }
+        .btn-next { background-color: #2ec4b6; color: #ffffff; min-width: 200px; }
+        .btn-review { background-color: #6c757d; color: #ffffff; font-size: 20pt; }
+        .btn-map { background-color: #4a90e2; color: #ffffff; font-size: 20pt; }
+        
+        /* おわるボタン：初期状態は非表示、左側に少し広めの余白(35px)を追加 */
+        .btn-quit { 
+            background-color: #e71d36; 
+            color: #ffffff; 
+            font-size: 20pt; 
+            display: none; 
+            margin-left: 35px; 
+        } 
+        
+        .btn-back { background-color: #e71d36; color: #ffffff; font-size: 22pt; margin: 5px 0; }
+
+        /* --- 全画面共通スタイル --- */
+        .full-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #f8f9fa;
+            z-index: 100;
+            padding: 10px;
+            display: none;
+        }
+        
+        #review-overlay {
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        #map-overlay {
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+        }
+
+        .overlay-header { text-align: center; margin-bottom: 15px; flex-shrink: 0; }
+        .overlay-title { font-size: 26pt; color: #343a40; font-weight: bold; margin: 0; }
+        .footer-action { text-align: center; flex-shrink: 0; }
+
+        /* --- ふりかえり画面 --- */
+        .review-grid { display: table; width: 90%; margin: 0 auto; border-collapse: separate; border-spacing: 12px; }
+        .review-row { display: table-row; }
+        .review-item {
+            display: table-cell; width: 25%; background-color: #ffffff; border: 2px solid #dee2e6;
+            border-radius: 12px; padding: 12px 5px; text-align: center; font-size: 22pt;
+            font-weight: bold; color: #495057; box-shadow: 0 4px 6px rgba(0,0,0,0.02); vertical-align: middle;
+        }
+        .review-number { font-size: 11pt; color: #6c757d; display: block; margin-bottom: 4px; }
+
+        /* --- 日本地図画面レイアウト --- */
+        .map-container {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #ffffff;
+            border-radius: 20px;
+            border: 2px solid #dee2e6;
+            padding: 5px;
+            margin-bottom: 5px;
+            overflow: hidden;
+        }
+        
+        .japan-map-grid {
+            display: grid;
+            grid-template-columns: repeat(14, 48px);
+            grid-template-rows: repeat(11, 48px);
+            gap: 4px;
+            background-color: #ffffff;
+            position: relative;
+            transform: scale(0.82); 
+            transform-origin: center center;
+        }
+        
+        /* 沖縄・九州区切り線 */
+        .japan-map-grid::before {
+            content: "";
+            position: absolute;
+            left: 52px;
+            bottom: 0;
+            width: 2px;
+            height: 50px;
+            background-color: #dddddd;
+        }
+        .japan-map-grid::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            bottom: 50px;
+            width: 52px;
+            height: 2px;
+            background-color: #dddddd;
+        }
+
+        .map-pref {
+            background-color: #ffffff;
+            border: 2px solid #cccccc;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9pt;
+            font-weight: bold;
+            color: #444444;
+            cursor: default;
+        }
+
+        /* 北海道専用スタイル */
+        #map-北海道 {
+            grid-column: 13 / 15 !important;
+            font-size: 10pt;
+            letter-spacing: 2px;
+        }
+
+        .map-pref.selected {
+            background-color: #ff9f1c !important;
+            color: #ffffff !important;
+            border-color: #f28500;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- メイン抽選画面 -->
+    <div class="app-container">
+        <h1 class="app-title">都道府県ビンゴ</h1>
+        
+        <div class="counter-box">
+            <span id="current-count" class="counter-highlight">0</span> / 47
+        </div>
+
+        <div class="main-display">
+            <div id="display-text" class="main-display-inner">
+                <span class="status-message">ボタンを押してスタート！</span>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <button id="action-btn" class="btn btn-start" onclick="drawPrefecture()">START</button>
+            <button id="review-btn" class="btn btn-review" onclick="openReview()">ふりかえり</button>
+            <button id="map-btn" class="btn btn-map" onclick="openMap()">日本地図</button>
+            <button id="quit-btn" class="btn btn-quit" onclick="resetApp()">おわる</button>
+        </div>
+    </div>
+
+    <!-- ふりかえり画面 -->
+    <div id="review-overlay" class="full-overlay">
+        <div class="overlay-header"><h2 class="overlay-title">これまでにでた都道府県</h2></div>
+        <div id="review-grid" class="review-grid"></div>
+        <div class="footer-action"><button class="btn btn-back" onclick="closeOverlay('review-overlay')">戻る</button></div>
+    </div>
+
+    <!-- 日本地図画面 -->
+    <div id="map-overlay" class="full-overlay">
+        <div class="map-container">
+            <div id="japan-map" class="japan-map-grid"></div>
+        </div>
+        <div class="footer-action"><button class="btn btn-back" onclick="closeOverlay('map-overlay')">戻る</button></div>
+    </div>
+
+    <script>
+        const prefecturesData = [
+            /* --- 東日本エリア --- */
+            { name: "北海道", r: 1, c: 14, bg: "#e3f2fd" },
+            { name: "青森県", r: 3, c: 13, bg: "#e8f5e9" },
+            { name: "岩手県", r: 4, c: 13, bg: "#e8f5e9" },
+            { name: "宮城県", r: 5, c: 13, bg: "#e8f5e9" },
+            { name: "秋田県", r: 4, c: 12, bg: "#e8f5e9" },
+            { name: "山形県", r: 5, c: 12, bg: "#e8f5e9" },
+            { name: "福島県", r: 6, c: 13, bg: "#e8f5e9" },
+            { name: "茨城県", r: 7, c: 13, bg: "#fff3e0" },
+            { name: "栃木県", r: 7, c: 12, bg: "#fff3e0" },
+            { name: "群馬県", r: 7, c: 11, bg: "#fff3e0" },
+            { name: "埼玉県", r: 8, c: 12, bg: "#fff3e0" },
+            { name: "千葉県", r: 9, c: 13, bg: "#fff3e0" },
+            { name: "東京都", r: 8, c: 13, bg: "#fff3e0" },
+            { name: "神奈川県", r: 9, c: 12, bg: "#fff3e0" },
+            { name: "新潟県", r: 6, c: 12, bg: "#f3e5f5" },
+            { name: "富山県", r: 6, c: 11, bg: "#f3e5f5" },
+            { name: "石川県", r: 5, c: 10, bg: "#f3e5f5" },
+            { name: "福井県", r: 6, c: 10, bg: "#f3e5f5" },
+            { name: "山梨県", r: 8, c: 11, bg: "#f3e5f5" },
+            { name: "長野県", r: 7, c: 10, bg: "#f3e5f5" },
+            { name: "岐阜県", r: 7, c: 9, bg: "#f3e5f5" },
+            { name: "静岡県", r: 8, c: 10, bg: "#f3e5f5" },
+            { name: "愛知県", r: 8, c: 9, bg: "#f3e5f5" },
+            { name: "三重県", r: 8, c: 8, bg: "#e1f5fe" },
+            { name: "滋賀県", r: 7, c: 8, bg: "#e1f5fe" },
+            { name: "京都府", r: 6, c: 8, bg: "#e1f5fe" },
+            { name: "大阪府", r: 7, c: 7, bg: "#e1f5fe" },
+            { name: "兵庫県", r: 6, c: 7, bg: "#e1f5fe" },
+            { name: "奈良県", r: 8, c: 7, bg: "#e1f5fe" },
+            { name: "和歌山県", r: 9, c: 7, bg: "#e1f5fe" },
+
+            /* --- 西日本エリア --- */
+            { name: "鳥取県", r: 6, c: 6, bg: "#e0f2f1" },
+            { name: "島根県", r: 6, c: 5, bg: "#e0f2f1" },
+            { name: "岡山県", r: 7, c: 6, bg: "#e0f2f1" },
+            { name: "広島県", r: 7, c: 5, bg: "#e0f2f1" },
+            { name: "山口県", r: 7, c: 4, bg: "#e0f2f1" },
+            
+            { name: "香川県", r: 8, c: 6, bg: "#fffde7" },
+            { name: "徳島県", r: 9, c: 6, bg: "#fffde7" },
+            { name: "愛媛県", r: 8, c: 5, bg: "#fffde7" },
+            { name: "高知県", r: 9, c: 5, bg: "#fffde7" },
+            
+            /* --- 九州・沖縄地方 --- */
+            { name: "長崎県", r: 8, c: 1, bg: "#fbe9e7" },
+            { name: "沖縄県", r: 10, c: 1, bg: "#edf2f7" },
+            { name: "福岡県", r: 7, c: 2, bg: "#fbe9e7" },
+            { name: "佐賀県", r: 8, c: 2, bg: "#fbe9e7" },
+            { name: "熊本県", r: 9, c: 2, bg: "#fbe9e7" },
+            { name: "大分県", r: 8, c: 3, bg: "#fbe9e7" },
+            { name: "宮崎県", r: 9, c: 3, bg: "#fbe9e7" },
+            { name: "鹿児島県", r: 10, c: 3, bg: "#fbe9e7" }
+        ];
+
+        let shuffledList = [];
+        let drawnList = [];
+        let isFirst = true;
+        let audioCtx = null;
+
+        function createMapGrid() {
+            const mapGrid = document.getElementById("japan-map");
+            mapGrid.innerHTML = "";
+            prefecturesData.forEach(pref => {
+                const block = document.createElement("div");
+                block.className = "map-pref";
+                block.id = `map-${pref.name}`;
+                block.style.gridRow = pref.r;
+                block.style.gridColumn = pref.c;
+                block.style.backgroundColor = pref.bg;
+                
+                if (pref.name === "北海道") {
+                    block.textContent = pref.name;
+                } else {
+                    block.textContent = pref.name.replace("県", "").replace("府", "").replace("東京都", "東京");
+                }
+                mapGrid.appendChild(block);
+            });
+        }
+        window.onload = createMapGrid;
+
+        function initAudio() {
+            if (!audioCtx) { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'shuffle') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'hit') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.08); osc.frequency.setValueAtTime(783.99, now + 0.16);
+                osc.frequency.setValueAtTime(1046.50, now + 0.24); gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.2, now + 0.4); gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
+                osc.start(now); osc.stop(now + 0.6);
+            }
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function drawPrefecture() {
+            initAudio();
+            const actionBtn = document.getElementById("action-btn");
+            const displayText = document.getElementById("display-text");
+            const currentCountEl = document.getElementById("current-count");
+            const quitBtn = document.getElementById("quit-btn");
+
+            if (isFirst) {
+                shuffledList = shuffle(prefecturesData.map(p => p.name));
+                isFirst = false;
+                actionBtn.textContent = "NEXT";
+                actionBtn.className = "btn btn-next";
+                
+                // 最初の1枚目の抽選が始まったタイミングで「おわる」ボタンを画面に表示
+                quitBtn.style.display = "inline-block";
+            }
+
+            if (shuffledList.length === 0) return;
+
+            let shuffleCount = 0;
+            actionBtn.disabled = true;
+
+            const shuffleInterval = setInterval(() => {
+                const tempIndex = Math.floor(Math.random() * prefecturesData.length);
+                displayText.textContent = prefecturesData[tempIndex].name;
+                playSound('shuffle');
+                shuffleCount++;
+
+                if (shuffleCount > 8) {
+                    clearInterval(shuffleInterval);
+                    const nextPref = shuffledList.pop();
+                    drawnList.push(nextPref);
+                    
+                    displayText.textContent = nextPref;
+                    currentCountEl.textContent = drawnList.length;
+                    
+                    const mapBlock = document.getElementById(`map-${nextPref}`);
+                    if (mapBlock) mapBlock.classList.add("selected");
+
+                    playSound('hit');
+                    actionBtn.disabled = false;
+
+                    if (shuffledList.length === 0) { 
+                        displayText.innerHTML = nextPref + `<br><span class="status-message" style="color:#d9534f; font-size:30pt; display:block; margin-top:10px;">すべて出そろいました！</span>`;
+                        actionBtn.style.display = "none"; 
+                    }
+                }
+            }, 70);
+        }
+
+        function resetApp() {
+            if (drawnList.length > 0 && shuffledList.length > 0) {
+                if (!confirm("途中で終了して最初の画面に戻りますか？")) {
+                    return;
+                }
+            }
+            
+            shuffledList = [];
+            drawnList = [];
+            isFirst = true;
+
+            document.getElementById("current-count").textContent = "0";
+            document.getElementById("display-text").innerHTML = `<span class="status-message">ボタンを押してスタート！</span>`;
+            
+            const actionBtn = document.getElementById("action-btn");
+            actionBtn.textContent = "START";
+            actionBtn.className = "btn btn-start";
+            actionBtn.style.display = "inline-block";
+            actionBtn.disabled = false;
+
+            // 初期化に伴い「おわる」ボタンを再び非表示にする
+            document.getElementById("quit-btn").style.display = "none";
+
+            const selectedBlocks = document.querySelectorAll(".map-pref.selected");
+            selectedBlocks.forEach(block => block.classList.remove("selected"));
+        }
+
+        function openReview() {
+            const overlay = document.getElementById("review-overlay");
+            const grid = document.getElementById("review-grid");
+            grid.innerHTML = "";
+            if (drawnList.length === 0) return;
+
+            let currentRow = null;
+            drawnList.forEach((pref, index) => {
+                if (index % 4 === 0) {
+                    currentRow = document.createElement("div");
+                    currentRow.className = "review-row";
+                    grid.appendChild(currentRow);
+                }
+                const item = document.createElement("div");
+                item.className = "review-item";
+                item.innerHTML = `<span class="review-number">${index + 1}個目</span>${pref}`;
+                currentRow.appendChild(item);
+            });
+
+            const remainder = drawnList.length % 4;
+            if (remainder !== 0) {
+                for (let i = 0; i < (4 - remainder); i++) {
+                    const emptyItem = document.createElement("div");
+                    emptyItem.className = "review-item"; emptyItem.style.visibility = "hidden";
+                    currentRow.appendChild(emptyItem);
+                }
+            }
+            overlay.style.display = "block";
+        }
+
+        function openMap() {
+            document.getElementById("map-overlay").style.display = "flex";
+        }
+
+        function closeOverlay(id) {
+            document.getElementById(id).style.display = "none";
+        }
+    </script>
+</body>
+</html>
