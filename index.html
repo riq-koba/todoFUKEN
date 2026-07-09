@@ -278,7 +278,7 @@
             { name: "沖縄県", r: 10, c: 1, bg: "#edf2f7" },
             { name: "福岡県", r: 7, c: 2, bg: "#fbe9e7" },
             { name: "佐賀県", r: 8, c: 2, bg: "#fbe9e7" },
-            { name: "熊本県", r: 9, c: 2, bg: "#fbe9e7" },
+            { name: "熊本県", r: 9, r: 2, bg: "#fbe9e7" },
             { name: "大分県", r: 8, c: 3, bg: "#fbe9e7" },
             { name: "宮崎県", r: 9, c: 3, bg: "#fbe9e7" },
             { name: "鹿児島県", r: 10, c: 3, bg: "#fbe9e7" }
@@ -288,54 +288,71 @@
         let drawnList = [];
         let isFirst = true;
 
-        // --- 超安心設計：JavaScriptだけでその場で電子音を作るオーディオシステム ---
+        // --- オーディオコンテキストの完全初期化システム ---
         let audioCtx = null;
 
         function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (e) {
+                console.error("AudioContext initialization failed:", e);
             }
         }
 
-        // 短いシャッフル音（ピッ）
+        // 画面全体のどこを触っても、即座にオーディオのロックを解除する安全網
+        document.addEventListener('touchstart', initAudio, { passive: true });
+        document.addEventListener('click', initAudio, { passive: true });
+
+        // シャッフル音（聞き取りやすい高めの電子ピッ音）
         function playShuffleSound() {
+            initAudio();
+            if (!audioCtx) return;
+
             try {
-                initAudio();
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 
-                osc.type = 'sine'; // 柔らかいサイン波
-                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // レの音
+                osc.type = 'sine';
+                // 1000Hz前後のクリアな高音に変更
+                osc.frequency.setValueAtTime(1200, audioCtx.currentTime); 
                 
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime); // 音量
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05); // 一瞬で消す
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                // すぐにシュッと消すことで歯切れを良くする
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04); 
                 
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 
                 osc.start();
-                osc.stop(audioCtx.currentTime + 0.06);
-            } catch(e) { console.log(e); }
+                osc.stop(audioCtx.currentTime + 0.05);
+            } catch(e) { 
+                console.log(e); 
+            }
         }
 
-        // 豪華な確定音（ピポパポーーン！）
+        // 確定音（ピピッポーン！）
         function playHitSound() {
+            initAudio();
+            if (!audioCtx) return;
+
             try {
-                initAudio();
                 const now = audioCtx.currentTime;
-                const freqs = [523.25, 659.25, 783.99, 1046.50]; // ド・ミ・ソ・ド
+                // ド(523Hz) -> ソ(784Hz) -> ド(1046Hz) のハッピーな3連和音調
+                const notes = [523.25, 783.99, 1046.50]; 
                 
-                freqs.forEach((freq, index) => {
+                notes.forEach((freq, index) => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     
-                    osc.type = 'triangle'; // 少しポピュラーな三角波
+                    osc.type = 'triangle'; // 芯のある綺麗な音
                     osc.frequency.setValueAtTime(freq, now + (index * 0.06));
                     
-                    gain.gain.setValueAtTime(0.2, now + (index * 0.06));
+                    gain.gain.setValueAtTime(0.15, now + (index * 0.06));
                     gain.gain.exponentialRampToValueAtTime(0.001, now + (index * 0.06) + 0.3);
                     
                     osc.connect(gain);
@@ -344,7 +361,9 @@
                     osc.start(now + (index * 0.06));
                     osc.stop(now + (index * 0.06) + 0.35);
                 });
-            } catch(e) { console.log(e); }
+            } catch(e) { 
+                console.log(e); 
+            }
         }
 
         function createMapGrid() {
@@ -370,7 +389,7 @@
         window.onload = createMapGrid;
 
         function drawPrefecture() {
-            // ボタンを「カチッ」と叩いたこの瞬間に、ブラウザの音声再生ロックを完全に解除する
+            // ボタンタップの瞬間にも確実にアクティベートを叩く
             initAudio();
 
             const actionBtn = document.getElementById("action-btn");
@@ -395,7 +414,7 @@
                 const tempIndex = Math.floor(Math.random() * prefecturesData.length);
                 displayText.textContent = prefecturesData[tempIndex].name;
                 
-                // 自作の電子音システムで確実に再生
+                // シャッフル音再生
                 playShuffleSound();
 
                 shuffleCount++;
@@ -411,7 +430,7 @@
                     const mapBlock = document.getElementById(`map-${nextPref}`);
                     if (mapBlock) mapBlock.classList.add("selected");
 
-                    // 確定音を再生
+                    // 確定音再生
                     playHitSound();
                     
                     actionBtn.disabled = false;
