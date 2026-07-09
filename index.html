@@ -196,14 +196,6 @@
 </head>
 <body>
 
-    <!-- iPad連打対策：シャッフル音用プレイヤーを3台並列で用意 -->
-    <audio id="audio-shuffle-1" src="https://storage.googleapis.com/audio-assets/se_shuffle_short.mp3" preload="auto"></audio>
-    <audio id="audio-shuffle-2" src="https://storage.googleapis.com/audio-assets/se_shuffle_short.mp3" preload="auto"></audio>
-    <audio id="audio-shuffle-3" src="https://storage.googleapis.com/audio-assets/se_shuffle_short.mp3" preload="auto"></audio>
-    
-    <!-- 確定音用プレイヤー -->
-    <audio id="audio-hit" src="https://storage.googleapis.com/audio-assets/se_hit_pop.mp3" preload="auto"></audio>
-
     <!-- メイン抽選画面 -->
     <div class="app-container">
         <h1 class="app-title">都道府県ビンゴ</h1>
@@ -295,7 +287,65 @@
         let shuffledList = [];
         let drawnList = [];
         let isFirst = true;
-        let shuffleAudioIndex = 1; // 3台のプレイヤーを切り替えるための番号
+
+        // --- 超安心設計：JavaScriptだけでその場で電子音を作るオーディオシステム ---
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 短いシャッフル音（ピッ）
+        function playShuffleSound() {
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine'; // 柔らかいサイン波
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // レの音
+                
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime); // 音量
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05); // 一瞬で消す
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.06);
+            } catch(e) { console.log(e); }
+        }
+
+        // 豪華な確定音（ピポパポーーン！）
+        function playHitSound() {
+            try {
+                initAudio();
+                const now = audioCtx.currentTime;
+                const freqs = [523.25, 659.25, 783.99, 1046.50]; // ド・ミ・ソ・ド
+                
+                freqs.forEach((freq, index) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.type = 'triangle'; // 少しポピュラーな三角波
+                    osc.frequency.setValueAtTime(freq, now + (index * 0.06));
+                    
+                    gain.gain.setValueAtTime(0.2, now + (index * 0.06));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (index * 0.06) + 0.3);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.start(now + (index * 0.06));
+                    osc.stop(now + (index * 0.06) + 0.35);
+                });
+            } catch(e) { console.log(e); }
+        }
 
         function createMapGrid() {
             const mapGrid = document.getElementById("japan-map");
@@ -319,36 +369,14 @@
 
         window.onload = createMapGrid;
 
-        // iPad対策：ボタンを押した瞬間にすべての音声プレイヤーを「再生許可状態」にする
-        function unlockAllAudio() {
-            const h = document.getElementById('audio-hit');
-            h.play().then(() => { h.pause(); }).catch(() => {});
-
-            for (let i = 1; i <= 3; i++) {
-                const s = document.getElementById(`audio-shuffle-${i}`);
-                s.play().then(() => { s.pause(); }).catch(() => {});
-            }
-        }
-
-        // シャッフル音を3台で使い回して鳴らす（音詰まり回避）
-        function playShuffleSound() {
-            const currentShuffleAudio = document.getElementById(`audio-shuffle-${shuffleAudioIndex}`);
-            if (currentShuffleAudio) {
-                currentShuffleAudio.currentTime = 0;
-                currentShuffleAudio.play().catch(() => {});
-            }
-            // 次回は別のプレイヤーを指す（1→2→3→1... とループ）
-            shuffleAudioIndex = (shuffleAudioIndex % 3) + 1;
-        }
-
         function drawPrefecture() {
-            unlockAllAudio();
+            // ボタンを「カチッ」と叩いたこの瞬間に、ブラウザの音声再生ロックを完全に解除する
+            initAudio();
 
             const actionBtn = document.getElementById("action-btn");
             const displayText = document.getElementById("display-text");
             const currentCountEl = document.getElementById("current-count");
             const quitBtn = document.getElementById("quit-btn");
-            const audioHit = document.getElementById('audio-hit');
 
             if (isFirst) {
                 shuffledList = shuffle(prefecturesData.map(p => p.name));
@@ -367,13 +395,12 @@
                 const tempIndex = Math.floor(Math.random() * prefecturesData.length);
                 displayText.textContent = prefecturesData[tempIndex].name;
                 
-                // 3台使い回しシステムでシャッフル音を鳴らす
+                // 自作の電子音システムで確実に再生
                 playShuffleSound();
 
                 shuffleCount++;
 
-                // iPadが処理しやすいように、少し長めの演出（12回）に変更
-                if (shuffleCount > 12) {
+                if (shuffleCount > 10) {
                     clearInterval(shuffleInterval);
                     const nextPref = shuffledList.pop();
                     drawnList.push(nextPref);
@@ -384,9 +411,8 @@
                     const mapBlock = document.getElementById(`map-${nextPref}`);
                     if (mapBlock) mapBlock.classList.add("selected");
 
-                    // 確定音
-                    audioHit.currentTime = 0;
-                    audioHit.play().catch(() => {});
+                    // 確定音を再生
+                    playHitSound();
                     
                     actionBtn.disabled = false;
 
@@ -395,7 +421,7 @@
                         actionBtn.style.display = "none"; 
                     }
                 }
-            }, 100); // 連打が早すぎないよう、100ミリ秒（0.1秒）間隔に最適化
+            }, 90);
         }
 
         function shuffle(array) {
