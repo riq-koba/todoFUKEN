@@ -25,12 +25,12 @@
             height: 100vh;
             position: relative;
             display: block;
-            padding: 15px; /* iPad用に少しタイトに */
+            padding: 15px;
         }
 
         .app-title {
             text-align: center;
-            font-size: 26pt; /* 少しだけ縮小 */
+            font-size: 26pt;
             font-weight: bold;
             color: #2c5e43;
             margin: 0;
@@ -55,7 +55,6 @@
             color: #d9534f;
         }
 
-        /* iPadの高さに対応するため、高さを45vh→38vhへ調整 */
         .main-display {
             width: 85%;
             height: 38vh;
@@ -70,7 +69,7 @@
         .main-display-inner {
             display: table-cell;
             vertical-align: middle;
-            font-size: 70pt; /* わずかに縮小して見切れ防止 */
+            font-size: 70pt;
             font-weight: 900;
             color: #1a1a1a;
             letter-spacing: 4px;
@@ -81,19 +80,17 @@
             font-weight: bold;
         }
 
-        /* 下部ボタンエリアの位置を調整 */
         .control-panel {
             position: absolute;
-            bottom: 25px; /* 下からの距離を少し詰める */
-            left: 0;
+            bottom: 25px;
             width: 100%;
             text-align: center;
         }
 
         .btn {
-            font-size: 22pt; /* ボタン内の文字サイズを調整 */
+            font-size: 22pt;
             font-weight: bold;
-            padding: 15px 35px; /* ボタンの縦横を少しスリムに */
+            padding: 15px 35px;
             border-radius: 15px;
             border: none;
             cursor: pointer;
@@ -101,7 +98,7 @@
             box-shadow: 0 6px 12px rgba(0,0,0,0.15);
             transition: transform 0.1s, background-color 0.2s;
             display: inline-block;
-            margin: 8px 10px; /* 上下マージンを確保 */
+            margin: 8px 10px;
             vertical-align: middle;
             -webkit-tap-highlight-color: transparent;
         }
@@ -114,16 +111,7 @@
         .btn-next { background-color: #2ec4b6; color: #ffffff; min-width: 180px; }
         .btn-review { background-color: #6c757d; color: #ffffff; font-size: 19pt; }
         .btn-map { background-color: #4a90e2; color: #ffffff; font-size: 19pt; }
-        
-        /* おわるボタン */
-        .btn-quit { 
-            background-color: #e71d36; 
-            color: #ffffff; 
-            font-size: 19pt; 
-            display: none; 
-            margin-left: 30px; /* 間隔を少し微調整 */
-        } 
-        
+        .btn-quit { background-color: #e71d36; color: #ffffff; font-size: 19pt; display: none; margin-left: 30px; } 
         .btn-back { background-color: #e71d36; color: #ffffff; font-size: 22pt; margin: 5px 0; }
 
         /* --- 全画面共通スタイル --- */
@@ -139,18 +127,8 @@
             display: none;
         }
         
-        #review-overlay {
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        #map-overlay {
-            display: none;
-            flex-direction: column;
-            justify-content: space-between;
-            overflow: hidden;
-        }
-
+        #review-overlay { overflow-y: auto; padding: 20px; }
+        #map-overlay { display: none; flex-direction: column; justify-content: space-between; overflow: hidden; }
         .overlay-header { text-align: center; margin-bottom: 15px; flex-shrink: 0; }
         .overlay-title { font-size: 26pt; color: #343a40; font-weight: bold; margin: 0; }
         .footer-action { text-align: center; flex-shrink: 0; }
@@ -191,25 +169,8 @@
             transform-origin: center center;
         }
         
-        /* 沖縄・九州区切り線 */
-        .japan-map-grid::before {
-            content: "";
-            position: absolute;
-            left: 52px;
-            bottom: 0;
-            width: 2px;
-            height: 50px;
-            background-color: #dddddd;
-        }
-        .japan-map-grid::after {
-            content: "";
-            position: absolute;
-            left: 0;
-            bottom: 50px;
-            width: 52px;
-            height: 2px;
-            background-color: #dddddd;
-        }
+        .japan-map-grid::before { content: ""; position: absolute; left: 52px; bottom: 0; width: 2px; height: 50px; background-color: #dddddd; }
+        .japan-map-grid::after { content: ""; position: absolute; left: 0; bottom: 50px; width: 52px; height: 2px; background-color: #dddddd; }
 
         .map-pref {
             background-color: #ffffff;
@@ -224,13 +185,7 @@
             cursor: default;
         }
 
-        /* 北海道専用スタイル */
-        #map-北海道 {
-            grid-column: 13 / 15 !important;
-            font-size: 10pt;
-            letter-spacing: 2px;
-        }
-
+        #map-北海道 { grid-column: 13 / 15 !important; font-size: 10pt; letter-spacing: 2px; }
         .map-pref.selected {
             background-color: #ff9f1c !important;
             color: #ffffff !important;
@@ -240,6 +195,10 @@
     </style>
 </head>
 <body>
+
+    <!-- 音再生用の隠しオーディオ要素 (iPad対策) -->
+    <audio id="audio-shuffle" preload="auto"></audio>
+    <audio id="audio-hit" preload="auto"></audio>
 
     <!-- メイン抽選画面 -->
     <div class="app-container">
@@ -280,7 +239,6 @@
 
     <script>
         const prefecturesData = [
-            /* --- 東日本エリア --- */
             { name: "北海道", r: 1, c: 14, bg: "#e3f2fd" },
             { name: "青森県", r: 3, c: 13, bg: "#e8f5e9" },
             { name: "岩手県", r: 4, c: 13, bg: "#e8f5e9" },
@@ -311,20 +269,15 @@
             { name: "兵庫県", r: 6, c: 7, bg: "#e1f5fe" },
             { name: "奈良県", r: 8, c: 7, bg: "#e1f5fe" },
             { name: "和歌山県", r: 9, c: 7, bg: "#e1f5fe" },
-
-            /* --- 西日本エリア --- */
             { name: "鳥取県", r: 6, c: 6, bg: "#e0f2f1" },
             { name: "島根県", r: 6, c: 5, bg: "#e0f2f1" },
             { name: "岡山県", r: 7, c: 6, bg: "#e0f2f1" },
             { name: "広島県", r: 7, c: 5, bg: "#e0f2f1" },
             { name: "山口県", r: 7, c: 4, bg: "#e0f2f1" },
-            
             { name: "香川県", r: 8, c: 6, bg: "#fffde7" },
             { name: "徳島県", r: 9, c: 6, bg: "#fffde7" },
             { name: "愛媛県", r: 8, c: 5, bg: "#fffde7" },
             { name: "高知県", r: 9, c: 5, bg: "#fffde7" },
-            
-            /* --- 九州・沖縄地方 --- */
             { name: "長崎県", r: 8, c: 1, bg: "#fbe9e7" },
             { name: "沖縄県", r: 10, c: 1, bg: "#edf2f7" },
             { name: "福岡県", r: 7, c: 2, bg: "#fbe9e7" },
@@ -338,7 +291,6 @@
         let shuffledList = [];
         let drawnList = [];
         let isFirst = true;
-        let audioCtx = null;
 
         function createMapGrid() {
             const mapGrid = document.getElementById("japan-map");
@@ -360,59 +312,62 @@
             });
         }
 
-        // iPad/iOSのためのオーディオ解放処理
-        function initAudio() {
-            if (!audioCtx) { 
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+        // --- iPad対策：プログラム内で短いWAV音源を1回だけ生成する処理 ---
+        function generateAudioSources() {
+            function createWavUrl(freqs, duration) {
+                const sampleRate = 8000;
+                const numSamples = Math.floor(sampleRate * duration);
+                const buffer = new Uint8Array(44 + numSamples);
+                
+                // WAV ヘッダー書き込み
+                buffer.set([82,73,70,70, 0,0,0,0, 87,65,86,69, 102,109,116, 32, 16,0,0,0, 1,0, 1,0, 64,31,0,0, 64,31,0,0, 1,0, 8,0, 100,97,116,97, 0,0,0,0]);
+                const view = new DataView(buffer.buffer);
+                view.setUint32(4, 36 + numSamples, true);
+                view.setUint32(40, numSamples, true);
+
+                // 波形生成 (簡易メロディ対応)
+                for (let i = 0; i < numSamples; i++) {
+                    const t = i / sampleRate;
+                    let freq = freqs[0];
+                    if (freqs.length > 1) {
+                        const step = Math.floor(t / (duration / freqs.length));
+                        freq = freqs[Math.min(step, freqs.length - 1)];
+                    }
+                    const sample = Math.sin(2 * Math.PI * freq * t);
+                    buffer[44 + i] = Math.floor((sample + 1) * 127);
+                }
+                return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
             }
-            // 停止・サスペンド状態なら強制的にアクティブにする
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+
+            // シャッフル音(ピッと短い低めの音)と、確定音(ピポパポと上がる音)
+            document.getElementById('audio-shuffle').src = createWavUrl([180], 0.05);
+            document.getElementById('audio-hit').src = createWavUrl([523, 659, 783, 1046], 0.4);
         }
 
-        // 最初の画面タップで音を鳴らせる状態（アンロック）にするiOS対策
-        window.addEventListener('touchstart', initAudio, { passive: true });
-        window.addEventListener('click', initAudio, { passive: true });
-        window.onload = createMapGrid;
+        window.onload = () => {
+            createMapGrid();
+            generateAudioSources();
+        };
 
-        function playSound(type) {
-            initAudio();
-            if (!audioCtx || audioCtx.state === 'suspended') return;
-            
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            const now = audioCtx.currentTime;
-
-            if (type === 'shuffle') {
-                osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
-                gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'hit') {
-                osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, now);
-                osc.frequency.setValueAtTime(659.25, now + 0.08); osc.frequency.setValueAtTime(783.99, now + 0.16);
-                osc.frequency.setValueAtTime(1046.50, now + 0.24); gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0.2, now + 0.4); gain.gain.linearRampToValueAtTime(0.01, now + 0.6);
-                osc.start(now); osc.stop(now + 0.6);
-            }
-        }
-
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
+        // iPad用に事前に音声要素を呼び出す解放処理
+        function unlockAudio() {
+            const s = document.getElementById('audio-shuffle');
+            const h = document.getElementById('audio-hit');
+            s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(() => {});
+            h.play().then(() => { h.pause(); h.currentTime = 0; }).catch(() => {});
         }
 
         function drawPrefecture() {
-            initAudio();
+            // ボタンを押したまさにその瞬間に、iPadの音声制限を解除する
+            unlockAudio();
+
             const actionBtn = document.getElementById("action-btn");
             const displayText = document.getElementById("display-text");
             const currentCountEl = document.getElementById("current-count");
             const quitBtn = document.getElementById("quit-btn");
+
+            const audioShuffle = document.getElementById('audio-shuffle');
+            const audioHit = document.getElementById('audio-hit');
 
             if (isFirst) {
                 shuffledList = shuffle(prefecturesData.map(p => p.name));
@@ -430,10 +385,14 @@
             const shuffleInterval = setInterval(() => {
                 const tempIndex = Math.floor(Math.random() * prefecturesData.length);
                 displayText.textContent = prefecturesData[tempIndex].name;
-                playSound('shuffle');
+                
+                // シャッフル音の再生 (iPadが追いつくよう毎回頭出し)
+                audioShuffle.currentTime = 0;
+                audioShuffle.play().catch(() => {});
+
                 shuffleCount++;
 
-                if (shuffleCount > 8) {
+                if (shuffleCount > 10) {
                     clearInterval(shuffleInterval);
                     const nextPref = shuffledList.pop();
                     drawnList.push(nextPref);
@@ -444,7 +403,10 @@
                     const mapBlock = document.getElementById(`map-${nextPref}`);
                     if (mapBlock) mapBlock.classList.add("selected");
 
-                    playSound('hit');
+                    // 確定音の再生
+                    audioHit.currentTime = 0;
+                    audioHit.play().catch(() => {});
+                    
                     actionBtn.disabled = false;
 
                     if (shuffledList.length === 0) { 
@@ -452,33 +414,33 @@
                         actionBtn.style.display = "none"; 
                     }
                 }
-            }, 70);
+            }, 80); // iPadの処理速度に合わせて少しだけ間隔を調整
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
         }
 
         function resetApp() {
             if (drawnList.length > 0 && shuffledList.length > 0) {
-                if (!confirm("途中で終了して最初の画面に戻りますか？")) {
-                    return;
-                }
+                if (!confirm("途中で終了して最初の画面に戻りますか？")) return;
             }
-            
             shuffledList = [];
             drawnList = [];
             isFirst = true;
-
             document.getElementById("current-count").textContent = "0";
             document.getElementById("display-text").innerHTML = `<span class="status-message">ボタンを押してスタート！</span>`;
-            
             const actionBtn = document.getElementById("action-btn");
             actionBtn.textContent = "START";
             actionBtn.className = "btn btn-start";
             actionBtn.style.display = "inline-block";
             actionBtn.disabled = false;
-
             document.getElementById("quit-btn").style.display = "none";
-
-            const selectedBlocks = document.querySelectorAll(".map-pref.selected");
-            selectedBlocks.forEach(block => block.classList.remove("selected"));
+            document.querySelectorAll(".map-pref.selected").forEach(block => block.classList.remove("selected"));
         }
 
         function openReview() {
@@ -511,13 +473,8 @@
             overlay.style.display = "block";
         }
 
-        function openMap() {
-            document.getElementById("map-overlay").style.display = "flex";
-        }
-
-        function closeOverlay(id) {
-            document.getElementById(id).style.display = "none";
-        }
+        function openMap() { document.getElementById("map-overlay").style.display = "flex"; }
+        function closeOverlay(id) { document.getElementById(id).style.display = "none"; }
     </script>
 </body>
 </html>
